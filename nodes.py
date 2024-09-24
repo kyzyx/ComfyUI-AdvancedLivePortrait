@@ -837,6 +837,10 @@ class ExpressionEditor:
         self.crop_factor = None
 
     @classmethod
+    def IS_CHANGED(cls, **kwargs):
+        return True
+
+    @classmethod
     def INPUT_TYPES(s):
         display = "number"
         #display = "slider"
