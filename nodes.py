@@ -838,7 +838,7 @@ class ExpressionEditor:
 
     @classmethod
     def IS_CHANGED(cls, **kwargs):
-        return True
+        return float("NaN")
 
     @classmethod
     def INPUT_TYPES(s):
