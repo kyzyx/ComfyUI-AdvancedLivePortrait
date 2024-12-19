@@ -222,7 +222,7 @@ class LP_Engine:
         pred = detect_model(image_rgb, conf=0.7, device="")
         return pred[0].boxes.xyxy.cpu().numpy()
 
-    def detect_face(self, image_rgb, crop_factor, sort = True):
+    def detect_face(self, image_rgb, crop_factor, sort = True, mask=None):
         bboxes = self.get_face_bboxes(image_rgb)
         w, h = get_rgb_size(image_rgb)
 
@@ -230,15 +230,26 @@ class LP_Engine:
 
         cx = w / 2
         min_diff = w
+        max_prop = 0
         best_box = None
         for x1, y1, x2, y2 in bboxes:
             bbox_w = x2 - x1
-            if bbox_w < 30: continue
-            diff = abs(cx - (x1 + bbox_w / 2))
-            if diff < min_diff:
-                best_box = [x1, y1, x2, y2]
-                print(f"diff, min_diff, best_box:{diff, min_diff, best_box}")
-                min_diff = diff
+            bbox_h = y2 - y1
+            if bbox_w < 30: continue #skip small faces
+            if mask is not None:
+                if mask[..., int((y2-y1)/2), int((x2-x1)/2)] < 0.5: continue # skip faces centered out of mask
+                prop = torch.sum(mask[..., int(y1):int(y2), int(x1):int(x2)]) / (bbox_w * bbox_h)
+                if prop > max_prop:
+                    best_box = [x1, y1, x2, y2]
+                    print(f"prop, max_prop, best_box:{prop, max_prop, best_box}")
+                    max_prop = prop
+            else:
+                diff = abs(cx - (x1 + bbox_w / 2))
+                if diff < min_diff:
+                    best_box = [x1, y1, x2, y2]
+                    print(f"diff, min_diff, best_box:{diff, min_diff, best_box}")
+                    min_diff = diff
+
 
         if best_box == None:
             print("Failed to detect face!!")
@@ -357,7 +368,7 @@ class LP_Engine:
         if is_changed: face_img = self.expand_img(face_img, crop_region)
         return face_img
 
-    def prepare_source(self, source_image, crop_factor, is_video = False, tracking = False):
+    def prepare_source(self, source_image, crop_factor, is_video = False, tracking = False, mask=None):
         print("Prepare source...")
         engine = self.get_pipeline()
         source_image_np = (source_image * 255).byte().numpy()
@@ -366,7 +377,7 @@ class LP_Engine:
         psi_list = []
         for img_rgb in source_image_np:
             if tracking or len(psi_list) == 0:
-                crop_region = self.detect_face(img_rgb, crop_factor)
+                crop_region = self.detect_face(img_rgb, crop_factor, mask=mask)
                 face_region, is_changed = self.calc_face_region(crop_region, get_rgb_size(img_rgb))
 
                 s_x = (face_region[2] - face_region[0]) / 512.
@@ -868,7 +879,7 @@ class ExpressionEditor:
                                           "min": crop_factor_min, "max": crop_factor_max, "step": 0.1}),
             },
 
-            "optional": {"src_image": ("IMAGE",), "motion_link": ("EDITOR_LINK",),
+            "optional": {"src_image": ("IMAGE",), "src_mask": ("MASK",), "motion_link": ("EDITOR_LINK",),
                          "sample_image": ("IMAGE",), "add_exp": ("EXP_DATA",),
             },
         }
@@ -886,7 +897,7 @@ class ExpressionEditor:
     # OUTPUT_IS_LIST = (False,)
 
     def run(self, rotate_pitch, rotate_yaw, rotate_roll, blink, eyebrow, wink, pupil_x, pupil_y, aaa, eee, woo, smile,
-            src_ratio, sample_ratio, sample_parts, crop_factor, src_image=None, sample_image=None, motion_link=None, add_exp=None):
+            src_ratio, sample_ratio, sample_parts, crop_factor, src_image=None, src_mask=None, sample_image=None, motion_link=None, add_exp=None):
         rotate_yaw = -rotate_yaw
 
         new_editor_link = None
@@ -896,7 +907,7 @@ class ExpressionEditor:
         elif src_image != None:
             if id(src_image) != id(self.src_image) or self.crop_factor != crop_factor:
                 self.crop_factor = crop_factor
-                self.psi = g_engine.prepare_source(src_image, crop_factor)
+                self.psi = g_engine.prepare_source(src_image, crop_factor, mask=src_mask)
                 self.src_image = src_image
             new_editor_link = []
             new_editor_link.append(self.psi)
