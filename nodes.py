@@ -223,6 +223,8 @@ class LP_Engine:
         return pred[0].boxes.xyxy.cpu().numpy()
 
     def detect_face(self, image_rgb, crop_factor, sort = True, mask=None):
+        if torch.sum(mask) == 0:
+            mask = None
         bboxes = self.get_face_bboxes(image_rgb)
         w, h = get_rgb_size(image_rgb)
 
