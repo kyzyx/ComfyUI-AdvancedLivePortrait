@@ -225,6 +225,8 @@ class LP_Engine:
     def detect_face(self, image_rgb, crop_factor, sort=True, mask=None):
         if mask is not None and torch.sum(mask) == 0:
             mask = None
+        if mask is not None:
+            mask = 1-mask
         bboxes = self.get_face_bboxes(image_rgb)
         w, h = get_rgb_size(image_rgb)
 
