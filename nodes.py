@@ -241,7 +241,9 @@ class LP_Engine:
             bbox_h = y2 - y1
             if bbox_w < 30: continue #skip small faces
             if mask is not None:
-                if mask[..., int((y2-y1)/2), int((x2-x1)/2)] < 0.5: continue # skip faces centered out of mask
+                if mask[..., int((y2+y1)/2), int((x2+x1)/2)] < 0.5:
+                    print("skip faces centered out of mask")
+                    continue # skip faces centered out of mask
                 prop = torch.sum(mask[..., int(y1):int(y2), int(x1):int(x2)]) / (bbox_w * bbox_h)
                 if prop > max_prop:
                     best_box = [x1, y1, x2, y2]
