@@ -879,6 +879,7 @@ class ExpressionEditor:
                 "smile": ("FLOAT", {"default": 0, "min": -0.3, "max": 1.3, "step": 0.01, "display": display}),
 
                 "src_ratio": ("FLOAT", {"default": 1, "min": 0, "max": 1, "step": 0.01, "display": display}),
+                "pose_src_ratio": ("FLOAT", {"default": 1, "min": 0, "max": 1, "step": 0.01, "display": display}),
                 "sample_ratio": ("FLOAT", {"default": 1, "min": -0.2, "max": 1.2, "step": 0.01, "display": display}),
                 "sample_parts": (["OnlyExpression", "OnlyRotation", "OnlyMouth", "OnlyEyes", "All"],),
                 "crop_factor": ("FLOAT", {"default": crop_factor_default,
@@ -903,7 +904,7 @@ class ExpressionEditor:
     # OUTPUT_IS_LIST = (False,)
 
     def run(self, rotate_pitch, rotate_yaw, rotate_roll, blink, eyebrow, wink, pupil_x, pupil_y, aaa, eee, woo, smile,
-            src_ratio, sample_ratio, sample_parts, crop_factor, src_image=None, src_mask=None, sample_image=None, motion_link=None, add_exp=None):
+            src_ratio, pose_src_ratio, sample_ratio, sample_parts, crop_factor, src_image=None, src_mask=None, sample_image=None, motion_link=None, add_exp=None):
         rotate_yaw = -rotate_yaw
 
         new_editor_link = None
@@ -959,8 +960,10 @@ class ExpressionEditor:
         if add_exp != None:
             es.add(add_exp)
 
-        new_rotate = get_rotation_matrix(s_info['pitch'] + es.r[0], s_info['yaw'] + es.r[1],
-                                         s_info['roll'] + es.r[2])
+        # Pitch and yaw may need to be controlled separately as this affects gaze direction. Roll can be treated similar
+        # to expression
+        new_rotate = get_rotation_matrix(s_info['pitch']*pose_src_ratio + es.r[0], s_info['yaw']*pose_src_ratio + es.r[1],
+                                         s_info['roll']*src_ratio + es.r[2])
         x_d_new = (s_info['scale'] * (1 + es.s)) * ((s_exp + es.e) @ new_rotate) + s_info['t']
 
         x_d_new = pipeline.stitching(psi.x_s_user, x_d_new)
