@@ -223,10 +223,26 @@ class LP_Engine:
         return pred[0].boxes.xyxy.cpu().numpy()
 
     def detect_face(self, image_rgb, crop_factor, sort=True, mask=None):
+        mx1 = mx2 = my1 = my2 = -1
         if mask is not None and torch.sum(mask) == 0:
             mask = None
         if mask is not None:
             mask = 1-mask
+            mask_x = torch.nonzero(torch.max(mask[0], -2, keepdim=False)[0])
+            mask_y = torch.nonzero(torch.max(mask[0], -1, keepdim=False)[0])
+            mx1 = mask_x[0]
+            mx2 = mask_x[-1]
+            my1 = mask_y[0]
+            my2 = mask_y[-1]
+            mw = mx2 - mx1
+            mh = my2 - my1
+            # Tighten bounds slightly.
+            mx1 = mx1 + mw * 0.1
+            mx2 = mx2 - mw * 0.1
+            # Looser bounds for y direction in case mask is of whole person
+            my1 = my1 + mh * 0.05
+            my2 = my2 - mh * 0.05
+
         bboxes = self.get_face_bboxes(image_rgb)
         w, h = get_rgb_size(image_rgb)
 
@@ -239,11 +255,15 @@ class LP_Engine:
         for x1, y1, x2, y2 in bboxes:
             bbox_w = x2 - x1
             bbox_h = y2 - y1
-            if bbox_w < 30: continue #skip small faces
+            if bbox_w < 30:
+                print("skip small faces")
+                continue
             if mask is not None:
-                if mask[..., int((y2+y1)/2), int((x2+x1)/2)] < 0.5:
-                    print("skip faces centered out of mask")
-                    continue # skip faces centered out of mask
+                bb_cx = (x2+x1)/2
+                bb_cy = (y2+y1)/2
+                if bb_cy < my1 or bb_cy > my2 or bb_cx < mx1 or bb_cy > mx2:
+                    print("skip faces centered out of mask bbox")
+                    continue
                 prop = torch.sum(mask[..., int(y1):int(y2), int(x1):int(x2)]) / (bbox_w * bbox_h)
                 if prop > max_prop:
                     best_box = [x1, y1, x2, y2]
