@@ -884,19 +884,19 @@ class ExpressionEditor:
         return {
             "required": {
 
-                "rotate_pitch": ("FLOAT", {"default": 0, "min": -20, "max": 20, "step": 0.5, "display": display}),
-                "rotate_yaw": ("FLOAT", {"default": 0, "min": -20, "max": 20, "step": 0.5, "display": display}),
-                "rotate_roll": ("FLOAT", {"default": 0, "min": -20, "max": 20, "step": 0.5, "display": display}),
+                "rotate_pitch": ("FLOAT", {"default": 0, "min": -30, "max": 30, "step": 0.5, "display": display}),
+                "rotate_yaw": ("FLOAT", {"default": 0, "min": -40, "max": 40, "step": 0.5, "display": display}),
+                "rotate_roll": ("FLOAT", {"default": 0, "min": -30, "max": 30, "step": 0.5, "display": display}),
 
                 "blink": ("FLOAT", {"default": 0, "min": -20, "max": 5, "step": 0.5, "display": display}),
-                "eyebrow": ("FLOAT", {"default": 0, "min": -10, "max": 15, "step": 0.5, "display": display}),
+                "eyebrow": ("FLOAT", {"default": 0, "min": -40, "max": 30, "step": 0.5, "display": display}),
                 "wink": ("FLOAT", {"default": 0, "min": 0, "max": 25, "step": 0.5, "display": display}),
                 "pupil_x": ("FLOAT", {"default": 0, "min": -15, "max": 15, "step": 0.5, "display": display}),
                 "pupil_y": ("FLOAT", {"default": 0, "min": -15, "max": 15, "step": 0.5, "display": display}),
                 "aaa": ("FLOAT", {"default": 0, "min": -30, "max": 120, "step": 1, "display": display}),
                 "eee": ("FLOAT", {"default": 0, "min": -20, "max": 15, "step": 0.2, "display": display}),
                 "woo": ("FLOAT", {"default": 0, "min": -20, "max": 15, "step": 0.2, "display": display}),
-                "smile": ("FLOAT", {"default": 0, "min": -0.3, "max": 1.3, "step": 0.01, "display": display}),
+                "smile": ("FLOAT", {"default": 0, "min": -0.6, "max": 2.0, "step": 0.01, "display": display}),
 
                 "src_ratio": ("FLOAT", {"default": 1, "min": 0, "max": 1, "step": 0.01, "display": display}),
                 "pose_src_ratio": ("FLOAT", {"default": 1, "min": 0, "max": 1, "step": 0.01, "display": display}),
