@@ -888,7 +888,7 @@ class ExpressionEditor:
                 "rotate_yaw": ("FLOAT", {"default": 0, "min": -40, "max": 40, "step": 0.5, "display": display}),
                 "rotate_roll": ("FLOAT", {"default": 0, "min": -30, "max": 30, "step": 0.5, "display": display}),
 
-                "blink": ("FLOAT", {"default": 0, "min": -20, "max": 5, "step": 0.5, "display": display}),
+                "blink": ("FLOAT", {"default": 0, "min": -20, "max": 10, "step": 0.5, "display": display}),
                 "eyebrow": ("FLOAT", {"default": 0, "min": -40, "max": 30, "step": 0.5, "display": display}),
                 "wink": ("FLOAT", {"default": 0, "min": 0, "max": 25, "step": 0.5, "display": display}),
                 "pupil_x": ("FLOAT", {"default": 0, "min": -15, "max": 15, "step": 0.5, "display": display}),
