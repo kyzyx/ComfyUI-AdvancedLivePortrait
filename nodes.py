@@ -212,9 +212,11 @@ class LP_Engine:
         if self.segmentation_model == None:
             model_dir = get_model_dir("ultralytics")
             if not os.path.exists(model_dir): os.mkdir(model_dir)
-            model_path = os.path.join(model_dir, "yolo11l-seg.pt")
+            # model_path = os.path.join(model_dir, "yolo11l-seg.pt")
+            model_path = os.path.join(model_dir, "person_yolov8m-seg.pt")
             if not os.path.exists(model_path):
-                self.download_model(model_path, "https://huggingface.co/Ultralytics/YOLO11/resolve/a01aaa06caeff788b052e193acb76b3f21571b3a/yolo11l-seg.pt")
+                # self.download_model(model_path, "https://huggingface.co/Ultralytics/YOLO11/resolve/a01aaa06caeff788b052e193acb76b3f21571b3a/yolo11l-seg.pt")
+                self.download_model(model_path, "https://huggingface.co/Bingsu/adetailer/resolve/main/person_yolov8m-seg.pt")
             self.segmentation_model = YOLO(model_path)
 
         return self.segmentation_model
