@@ -82,13 +82,14 @@ def retargeting(delta_out, driving_exp, factor, idxes):
         delta_out[0, idx] += driving_exp[0, idx] * factor
 
 class PreparedSrcImg:
-    def __init__(self, src_rgb, crop_trans_m, x_s_info, f_s_user, x_s_user, mask_ori):
+    def __init__(self, src_rgb, crop_trans_m, x_s_info, f_s_user, x_s_user, mask_ori, crop_rgb=None):
         self.src_rgb = src_rgb
         self.crop_trans_m = crop_trans_m
         self.x_s_info = x_s_info
         self.f_s_user = f_s_user
         self.x_s_user = x_s_user
         self.mask_ori = mask_ori
+        self.crop_rgb = crop_rgb
 
 import requests
 from tqdm import tqdm
@@ -96,6 +97,7 @@ from tqdm import tqdm
 class LP_Engine:
     pipeline = None
     detect_model = None
+    segmentation_model = None
     mask_img = None
     temp_img_idx = 0
 
@@ -206,6 +208,17 @@ class LP_Engine:
 
         self.pipeline = LivePortraitWrapper(InferenceConfig(), appearance_feature_extractor, motion_extractor, warping_module, spade_generator, stitching_retargeting_module)
 
+    def get_segmentation_model(self):
+        if self.segmentation_model == None:
+            model_dir = get_model_dir("ultralytics")
+            if not os.path.exists(model_dir): os.mkdir(model_dir)
+            model_path = os.path.join(model_dir, "yolo11l-seg.pt")
+            if not os.path.exists(model_path):
+                self.download_model(model_path, "https://huggingface.co/Ultralytics/YOLO11/resolve/a01aaa06caeff788b052e193acb76b3f21571b3a/yolo11l-seg.pt")
+            self.segmentation_model = YOLO(model_path)
+
+        return self.segmentation_model
+
     def get_detect_model(self):
         if self.detect_model == None:
             model_dir = get_model_dir("ultralytics")
@@ -216,6 +229,26 @@ class LP_Engine:
             self.detect_model = YOLO(model_path)
 
         return self.detect_model
+
+    def get_person_mask(self, image_rgb):
+        segmentation_model = self.get_segmentation_model()
+        # Detect only people (class = 0)
+        pred = segmentation_model(image_rgb, conf=0.7, device="", classes=[0], retina_masks=True)
+
+        # Pick person where center of mass of mask is closest to centered
+        best_mask = -1
+        best_distance = 1e9
+        for i, mask in enumerate(pred[0].boxes):
+            dx = abs(mask.xyxy[0, 2] + mask.xyxy[0, 0] - pred[0].orig_shape[0]) / 2
+            dy = abs(mask.xyxy[0, 3] + mask.xyxy[0, 1] - pred[0].orig_shape[1]) / 2
+            dist = dx * dx + dy * dy
+            if dist < best_distance:
+                best_distance = dist
+                best_mask = i
+        if best_mask < 0:
+            return torch.ones(*image_rgb.shape[:2]).unsqueeze(0)
+
+        return pred[0].masks.data[best_mask:best_mask+1]
 
     def get_face_bboxes(self, image_rgb):
         detect_model = self.get_detect_model()
@@ -422,7 +455,7 @@ class LP_Engine:
             x_s_info = engine.get_kp_info(i_s)
             f_s_user = engine.extract_feature_3d(i_s)
             x_s_user = engine.transform_keypoint(x_s_info)
-            psi = PreparedSrcImg(img_rgb, crop_trans_m, x_s_info, f_s_user, x_s_user, mask_ori)
+            psi = PreparedSrcImg(img_rgb, crop_trans_m, x_s_info, f_s_user, x_s_user, mask_ori, face_img)
             if is_video == False:
                 return psi
             psi_list.append(psi)
@@ -911,8 +944,8 @@ class ExpressionEditor:
             },
         }
 
-    RETURN_TYPES = ("IMAGE", "EDITOR_LINK", "EXP_DATA")
-    RETURN_NAMES = ("image", "motion_link", "save_exp")
+    RETURN_TYPES = ("IMAGE", "MASK", "EDITOR_LINK", "EXP_DATA")
+    RETURN_NAMES = ("image", "mask", "motion_link", "save_exp")
 
     FUNCTION = "run"
 
@@ -992,9 +1025,19 @@ class ExpressionEditor:
         crop_out = pipeline.parse_output(crop_out['out'])[0]
 
         crop_with_fullsize = cv2.warpAffine(crop_out, psi.crop_trans_m, get_rgb_size(psi.src_rgb), cv2.INTER_LINEAR)
-        out = np.clip(psi.mask_ori * crop_with_fullsize + (1 - psi.mask_ori) * psi.src_rgb, 0, 255).astype(np.uint8)
+        interpolation = cv2.INTER_AREA if crop_out.shape[1] < psi.crop_rgb.shape[1] else cv2.INTER_LINEAR
+        orig_crop = cv2.resize(psi.crop_rgb, crop_out.shape[0:2], interpolation=interpolation)
+        orig_mask = g_engine.get_person_mask(orig_crop).permute(1, 2, 0).numpy()
+        crop_mask = g_engine.get_person_mask(crop_out).permute(1, 2, 0).numpy()
+        crop_mask = np.maximum(orig_mask, crop_mask)
+        crop_mask_fullsize = cv2.warpAffine(crop_mask, psi.crop_trans_m, get_rgb_size(psi.src_rgb), cv2.INTER_LINEAR)
+        mask_complete = np.expand_dims(crop_mask_fullsize, -1) * psi.mask_ori
+        out = np.clip(mask_complete * crop_with_fullsize + (1 - mask_complete) * psi.src_rgb, 0, 255).astype(np.uint8)
+        if src_mask is not None:
+            mask_complete = np.maximum(mask_complete, 1 - src_mask.permute(1,2,0).numpy())
 
         out_img = pil2tensor(out)
+        out_mask = torch.from_numpy(np.array(mask_complete).astype(np.float32)).permute(2,0,1)[0:1]
 
         filename = g_engine.get_temp_img_name() #"fe_edit_preview.png"
         folder_paths.get_save_image_path(filename, folder_paths.get_temp_directory())
@@ -1005,7 +1048,7 @@ class ExpressionEditor:
 
         new_editor_link.append(es)
 
-        return {"ui": {"images": results}, "result": (out_img, new_editor_link, es)}
+        return {"ui": {"images": results}, "result": (out_img, out_mask, new_editor_link, es)}
 
 NODE_CLASS_MAPPINGS = {
     "AdvancedLivePortrait": AdvancedLivePortrait,
