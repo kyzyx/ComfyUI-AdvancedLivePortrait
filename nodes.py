@@ -232,7 +232,7 @@ class LP_Engine:
 
         return self.detect_model
 
-    def get_person_mask(self, image_rgb):
+    def get_person_mask(self, image_rgb, dilate=0):
         segmentation_model = self.get_segmentation_model()
         # Detect only people (class = 0)
         pred = segmentation_model(image_rgb, conf=0.7, device="", classes=[0], retina_masks=True)
@@ -250,7 +250,11 @@ class LP_Engine:
         if best_mask < 0:
             return torch.ones(*image_rgb.shape[:2]).unsqueeze(0)
 
-        return pred[0].masks.data[best_mask:best_mask+1]
+        mask = pred[0].masks.data[best_mask:best_mask+1]
+        if dilate > 0:
+            k = 1 + 2*dilate
+            mask = torch.nn.functional.max_pool2d(mask, k, stride=1, padding=dilate)
+        return mask
 
     def get_face_bboxes(self, image_rgb):
         detect_model = self.get_detect_model()
@@ -1029,8 +1033,8 @@ class ExpressionEditor:
         crop_with_fullsize = cv2.warpAffine(crop_out, psi.crop_trans_m, get_rgb_size(psi.src_rgb), cv2.INTER_LINEAR)
         interpolation = cv2.INTER_AREA if crop_out.shape[1] < psi.crop_rgb.shape[1] else cv2.INTER_LINEAR
         orig_crop = cv2.resize(psi.crop_rgb, crop_out.shape[0:2], interpolation=interpolation)
-        orig_mask = g_engine.get_person_mask(orig_crop).permute(1, 2, 0).numpy()
-        crop_mask = g_engine.get_person_mask(crop_out).permute(1, 2, 0).numpy()
+        orig_mask = g_engine.get_person_mask(orig_crop, dilate=2).permute(1, 2, 0).numpy()
+        crop_mask = g_engine.get_person_mask(crop_out, dilate=2).permute(1, 2, 0).numpy()
         crop_mask = np.maximum(orig_mask, crop_mask)
         crop_mask_fullsize = cv2.warpAffine(crop_mask, psi.crop_trans_m, get_rgb_size(psi.src_rgb), cv2.INTER_LINEAR)
         mask_complete = np.expand_dims(crop_mask_fullsize, -1) * psi.mask_ori
