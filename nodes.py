@@ -1043,7 +1043,7 @@ class ExpressionEditor:
             mask_complete = np.maximum(mask_complete, 1 - src_mask.permute(1,2,0).numpy())
 
         out_img = pil2tensor(out)
-        out_mask = torch.from_numpy(np.array(mask_complete).astype(np.float32)).permute(2,0,1)[0:1]
+        out_mask = 1 - torch.from_numpy(np.array(mask_complete).astype(np.float32)).permute(2,0,1)[0:1]
 
         filename = g_engine.get_temp_img_name() #"fe_edit_preview.png"
         folder_paths.get_save_image_path(filename, folder_paths.get_temp_directory())
