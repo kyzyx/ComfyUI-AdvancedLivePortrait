@@ -1039,8 +1039,10 @@ class ExpressionEditor:
         crop_mask_fullsize = cv2.warpAffine(crop_mask, psi.crop_trans_m, get_rgb_size(psi.src_rgb), cv2.INTER_LINEAR)
         mask_complete = np.expand_dims(crop_mask_fullsize, -1) * psi.mask_ori
         out = np.clip(mask_complete * crop_with_fullsize + (1 - mask_complete) * psi.src_rgb, 0, 255).astype(np.uint8)
-        if src_mask is not None:
+        if src_mask is not None and (src_mask.shape[1] == mask_complete.shape[0] and src_mask.shape[2] == mask_complete.shape[1]):
             mask_complete = np.maximum(mask_complete, 1 - src_mask.permute(1,2,0).numpy())
+        else:
+            mask_complete = np.ones_like(mask_complete)
 
         out_img = pil2tensor(out)
         out_mask = 1 - torch.from_numpy(np.array(mask_complete).astype(np.float32)).permute(2,0,1)[0:1]
