@@ -1033,8 +1033,8 @@ class ExpressionEditor:
         crop_with_fullsize = cv2.warpAffine(crop_out, psi.crop_trans_m, get_rgb_size(psi.src_rgb), cv2.INTER_LINEAR)
         interpolation = cv2.INTER_AREA if crop_out.shape[1] < psi.crop_rgb.shape[1] else cv2.INTER_LINEAR
         orig_crop = cv2.resize(psi.crop_rgb, crop_out.shape[0:2], interpolation=interpolation)
-        orig_mask = g_engine.get_person_mask(orig_crop, dilate=2).permute(1, 2, 0).numpy()
-        crop_mask = g_engine.get_person_mask(crop_out, dilate=2).permute(1, 2, 0).numpy()
+        orig_mask = g_engine.get_person_mask(orig_crop, dilate=2).permute(1, 2, 0).cpu().numpy()
+        crop_mask = g_engine.get_person_mask(crop_out, dilate=2).permute(1, 2, 0).cpu().numpy()
         crop_mask = np.maximum(orig_mask, crop_mask)
         crop_mask_fullsize = cv2.warpAffine(crop_mask, psi.crop_trans_m, get_rgb_size(psi.src_rgb), cv2.INTER_LINEAR)
         mask_complete = np.expand_dims(crop_mask_fullsize, -1) * psi.mask_ori
